@@ -166,7 +166,7 @@ def digit_gui(case):
       
   def clear():
       cv.delete('all')
-      draw.rectangle((0, 0, 200, 200), fill=(255, 255, 255, 0))
+      draw.rectangle((0, 0, 500, 500), fill=(255, 255, 255, 0))
       txt.delete('1.0', END)
       
   def testing():
