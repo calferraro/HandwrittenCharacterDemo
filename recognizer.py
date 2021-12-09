@@ -28,9 +28,12 @@ import numpy as np
 import os
 
 from PIL import ImageTk, Image, ImageDraw
+import PIL.Image as Img
 import PIL
 import tkinter as tk
 from tkinter import *
+import pytesseract
+pytesseract.pytesseract.tesseract_cmd = 'C:\\Program Files\\Tesseract-OCR\\tesseract.exe'
 
 import argparse
 
@@ -70,14 +73,14 @@ def CNN_modelSetup(args, layers):
   return CNN_model
 
 def character_gui(case):
-    classes_letter=['a','b','c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z']
-    width = 300
+    classes_letter=['A','B','C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z']
+    width = 800
     height = 300
     center = height//2
     white = (255, 255, 255)
     green = (0,128,0)
 
-    modelCNN=tf.keras.models.load_model('./models/LetterRecognition_case{}.h5'.format(case)) # Load our model
+    modelCNN=tf.keras.models.load_model('LetterRecognition_case4.h5') # Load our model
 
     def paint(event):
         x1, y1 = (event.x - 10), (event.y - 10)
@@ -86,32 +89,64 @@ def character_gui(case):
         draw.line([x1, y1, x2, y2],fill="black",width=10)
         
     def model():
-        filename = "image.png"
+        filename = "./image.png"
         image1.save(filename)
-        pred=testing()
-        
-        txt.insert(tk.INSERT,"Prediction: {}".format(classes_letter[pred[0]]))
+        nchar=segmentation(filename)
+        txt.insert(tk.INSERT, "Prediction: ")
+        for i in range(nchar):
+            pred=testing(i+1)
+            txt.insert(tk.INSERT,"{}".format(classes_letter[pred[0]]))
         
     def clear():
         cv.delete('all')
-        draw.rectangle((0, 0, 500, 500), fill=(255, 255, 255, 0))
+        draw.rectangle((0, 0, 5000, 5000), fill=(255, 255, 255, 0))
         txt.delete('1.0', END)
+        import os
+        filename = "./image.png"
+        nchar=segmentation(filename)
+        for i in range(nchar):
+            os.remove('./char_' +str(i+1)+'.png')
         
-    def testing():
-        img=cv2.imread('image.png',0)
+    def testing(charnum):
+        img=cv2.imread('char_' +str(charnum)+'.png',0)
         img=cv2.bitwise_not(img)
         #cv2.imshow('img',img)
         img=cv2.resize(img,(28,28))
         img=img.reshape(1,28,28,1)
         img=img.astype('float32')
-        img=img/255.0
-        
+        img=img/255.0 
         pred=modelCNN.predict(img)
         classes_x=np.argmax(pred,axis=1)
         
-        
         return classes_x
-        
+
+    def segmentation(file):
+        #file = "./image.png"
+        img = cv2.imread(file)
+        h, w, _ = img.shape
+        boxes = pytesseract.image_to_boxes(img)
+        charcoordintates=boxes.splitlines()
+        nchar=len(charcoordintates)
+        k=1;
+        for b in boxes.splitlines():
+            b = b.split(' ')
+            img = cv2.rectangle(img, (int(b[1]), h - int(b[2])), (int(b[3]), h - int(b[4])), (0, 255, 0), 2)
+            fp = open(file,"rb")
+            imageObject = PIL.Image.open(fp)
+            #imageObject = Image.open('image.png')
+            cropped = imageObject.crop((int(b[1]), 
+                                        h-int(b[4]),
+                                        int(b[3]),
+                                        h-int(b[2]),
+                                      ))
+            card = Img.new("RGBA", (300, 300), (255, 255, 255))
+            img2 = cropped.convert("RGBA")
+            x, y = img2.size
+            ov=75
+            card.paste(img2, (ov, ov, x+ov, y+ov), img2)
+            card.save('char_' +str(k)+'.png', 'PNG')
+            k=k+1
+        return nchar
         
     root = Tk()
     ##root.geometry('1000x500') 
@@ -142,77 +177,109 @@ def character_gui(case):
     root.mainloop()
 
 def digit_gui(case):
-  classes=[0,1,2,3,4,5,6,7,8,9]
-  width = 300
-  height = 300
-  center = height//2
-  white = (255, 255, 255)
-  green = (0,128,0)
+    classes=[0,1,2,3,4,5,6,7,8,9]
+    width = 800
+    height = 300
+    center = height//2
+    white = (255, 255, 255)
+    green = (0,128,0)
 
-  modelCNN=tf.keras.models.load_model('./models/DigitRecognition_case{}.h5'.format(case)) # Load our model
+    modelCNN=tf.keras.models.load_model('CNN_HDR_case6.h5') # Load our model
 
-  def paint(event):
-      x1, y1 = (event.x - 10), (event.y - 10)
-      x2, y2 = (event.x + 10), (event.y + 10)
-      cv.create_oval(x1, y1, x2, y2, fill="black",width=10)
-      draw.line([x1, y1, x2, y2],fill="black",width=10)
-      
-  def model():
-      filename = "image.png"
-      image1.save(filename)
-      pred=testing()
-      
-      txt.insert(tk.INSERT,"Prediction: {}".format(str(pred[0]))) 
-      
-  def clear():
-      cv.delete('all')
-      draw.rectangle((0, 0, 500, 500), fill=(255, 255, 255, 0))
-      txt.delete('1.0', END)
-      
-  def testing():
-      img=cv2.imread('image.png',0)
-      img=cv2.bitwise_not(img)
-      #cv2.imshow('img',img)
-      img=cv2.resize(img,(28,28))
-      img=img.reshape(1,28,28,1)
-      img=img.astype('float32')
-      img=img/255.0
-      
-      pred=modelCNN.predict(img)
-      classes_x=np.argmax(pred,axis=1)
-      
-      
-      return classes_x
-      
-      
-  root = Tk()
-  ##root.geometry('1000x500') 
+    def paint(event):
+        x1, y1 = (event.x - 10), (event.y - 10)
+        x2, y2 = (event.x + 10), (event.y + 10)
+        cv.create_oval(x1, y1, x2, y2, fill="black",width=10)
+        draw.line([x1, y1, x2, y2],fill="black",width=10)
+        
+    def model():
+        filename = "./image.png"
+        image1.save(filename)
+        nchar=segmentation(filename)
+        txt.insert(tk.INSERT, "Prediction: ")
+        for i in range(nchar):
+            pred=testing(i+1)
+            txt.insert(tk.INSERT,"{}".format(classes[pred[0]]))
+        
+    def clear():
+        cv.delete('all')
+        draw.rectangle((0, 0, 5000, 5000), fill=(255, 255, 255, 0))
+        txt.delete('1.0', END)
+        import os
+        filename = "./image.png"
+        nchar=segmentation(filename)
+        for i in range(nchar):
+            os.remove('./char_' +str(i+1)+'.png')
 
-  root.resizable(0,0)
-  cv = Canvas(root, width=width, height=height, bg='white')
-  cv.pack()
+    def testing(charnum):
+        img=cv2.imread('char_' +str(charnum)+'.png',0)
+        img=cv2.bitwise_not(img)
+        #cv2.imshow('img',img)
+        img=cv2.resize(img,(28,28))
+        img=img.reshape(1,28,28,1)
+        img=img.astype('float32')
+        img=img/255.0 
+        pred=modelCNN.predict(img)
+        classes_x=np.argmax(pred,axis=1)
+        
+        return classes_x
 
-  # PIL create an empty image and draw object to draw on
-  # memory only, not visible
-  image1 = PIL.Image.new("RGB", (width, height), white)
-  draw = ImageDraw.Draw(image1)
+    def segmentation(file):
+        #file = "./image.png"
+        img = cv2.imread(file)
+        h, w, _ = img.shape
+        boxes = pytesseract.image_to_boxes(img)
+        charcoordintates=boxes.splitlines()
+        nchar=len(charcoordintates)
+        k=1;
+        for b in boxes.splitlines():
+            b = b.split(' ')
+            img = cv2.rectangle(img, (int(b[1]), h - int(b[2])), (int(b[3]), h - int(b[4])), (0, 255, 0), 2)
+            fp = open(file,"rb")
+            imageObject = PIL.Image.open(fp)
+            #imageObject = Image.open('image.png')
+            cropped = imageObject.crop((int(b[1]), 
+                                        h-int(b[4]),
+                                        int(b[3]),
+                                        h-int(b[2]),
+                                      ))
+            card = Img.new("RGBA", (300, 300), (255, 255, 255))
 
-  txt=tk.Text(root,bd=3,exportselection=0,bg='WHITE',font='Helvetica',
-              padx=10,pady=10,height=5,width=20)
+            img2 = cropped.convert("RGBA")
+            x, y = img2.size
+            ov=75
+            card.paste(img2, (ov, ov, x+ov, y+ov), img2)
+            card.save('char_' +str(k)+'.png', 'PNG')
+            k=k+1
+        return nchar
+        
+    root = Tk()
+    ##root.geometry('1000x500') 
 
-  cv.pack(expand=YES, fill=BOTH)
-  cv.bind("<B1-Motion>", paint)
+    root.resizable(0,0)
+    cv = Canvas(root, width=width, height=height, bg='white')
+    cv.pack()
 
-  ##button=Button(text="save",command=save)
-  btnModel=Button(text="Predict",command=model)
-  btnClear=Button(text="clear",command=clear)
-  ##button.pack()
-  btnModel.pack()
-  btnClear.pack()
-  txt.pack()
-  root.title('Digit recognition')
-  root.mainloop()
+    # PIL create an empty image and draw object to draw on
+    # memory only, not visible
+    image1 = PIL.Image.new("RGB", (width, height), white)
+    draw = ImageDraw.Draw(image1)
 
+    txt=tk.Text(root,bd=3,exportselection=0,bg='WHITE',font='Helvetica',
+                padx=10,pady=10,height=5,width=20)
+
+    cv.pack(expand=YES, fill=BOTH)
+    cv.bind("<B1-Motion>", paint)
+
+    ##button=Button(text="save",command=save)
+    btnModel=Button(text="Predict",command=model)
+    btnClear=Button(text="clear",command=clear)
+    ##button.pack()
+    btnModel.pack()
+    btnClear.pack()
+    txt.pack()
+    root.title('Digit recognition')
+    root.mainloop()
 
 def main(args):
   if(args.isDigit):
@@ -242,58 +309,55 @@ def main(args):
       # call gui function here
       digit_gui(args.case)
   else:
-     if(args.train):
+      # do character recognition code here
+      with open("./data/latin_data.csv") as file_name:
+          X_all_0 = np.loadtxt(file_name, delimiter=",")
 
-            # do character recognition code here
-            with open("./data/latin_data.csv") as file_name:
-                X_all_0 = np.loadtxt(file_name, delimiter=",")
-                
-            X_all=X_all_0.reshape(X_all_0.shape[0], 28, 28, 1)
-            X_all=X_all.astype('float32')            
-            
-            with open("./data/latin_label.csv") as file_name:
-                Y_all_0 = np.loadtxt(file_name, delimiter=",")
-         
-            Y_all=to_categorical(Y_all_0)
+      X_all=X_all_0.reshape(X_all_0.shape[0], 28, 28, 1)
+      X_all=X_all.astype('float32')
 
-            numbyclass=[493, 496, 508, 461, 500, 482, 509, 509, 476, 458, 460, 523, 547, 521, 465, 526, 484, 470, 519, 477, 475, 480, 465, 490, 545, 483]
-            Trnumbyclass=[394, 397, 406, 369, 400, 386, 407, 407, 381, 366, 368, 418, 438, 417, 372, 421, 387, 376, 415, 382, 380, 384, 372, 392, 436, 386]
+      with open("./data/latin_label.csv") as file_name:
+          Y_all_0 = np.loadtxt(file_name, delimiter=",")
+      Y_all=to_categorical(Y_all_0)
 
-            currentidx=0
-            tridx=[]
-            tsidx=[]
-            for i in range(26):
-                tridx=np.append(tridx,range(currentidx, currentidx+Trnumbyclass[i]))
-                tsidx=np.append(tsidx,range(currentidx+Trnumbyclass[i], currentidx+numbyclass[i]))
-                currentidx=currentidx+numbyclass[i]
+      Y_all_0.shape
 
-            tridx=tridx.astype(int)   
+      numbyclass=[493, 496, 508, 461, 500, 482, 509, 509, 476, 458, 460, 523, 547, 521, 465, 526, 484, 470, 519, 477, 475, 480, 465, 490, 545, 483]
+      Trnumbyclass=[394, 397, 406, 369, 400, 386, 407, 407, 381, 366, 368, 418, 438, 417, 372, 421, 387, 376, 415, 382, 380, 384, 372, 392, 436, 386]
 
-            tsidx=tsidx.astype(int) 
+      currentidx=0
+      tridx=[]
+      tsidx=[]
+      for i in range(26):
+          tridx=np.append(tridx,range(currentidx, currentidx+Trnumbyclass[i]))
+          tsidx=np.append(tsidx,range(currentidx+Trnumbyclass[i], currentidx+numbyclass[i]))
+          currentidx=currentidx+numbyclass[i]
+
+      tridx=tridx.astype(int)   
+
+      tsidx=tsidx.astype(int) 
 
 
-            Xtr=np.array([X_all[x] for x in tridx])
-            Xts=np.array([X_all[x] for x in tsidx])
-            Xtr_0=np.array([X_all_0[x] for x in tridx])
-            Xts_0=np.array([X_all_0[x] for x in tsidx])
-            Ytr=np.array([Y_all[x] for x in tridx])
-            Yts=np.array([Y_all[x] for x in tsidx])
-            Ytr_0=np.array([Y_all_0[x] for x in tridx])
-            Yts_0=np.array([Y_all_0[x] for x in tsidx])
+      Xtr=np.array([X_all[x] for x in tridx])
+      Xts=np.array([X_all[x] for x in tsidx])
+      Xtr_0=np.array([X_all_0[x] for x in tridx])
+      Xts_0=np.array([X_all_0[x] for x in tsidx])
+      Ytr=np.array([Y_all[x] for x in tridx])
+      Yts=np.array([Y_all[x] for x in tsidx])
+      Ytr_0=np.array([Y_all_0[x] for x in tridx])
+      Yts_0=np.array([Y_all_0[x] for x in tsidx])
 
-     
-            print('start training')
+      if(args.train):
+          print('start training')
           # call training function here
-            CNN_mod = CNN_modelSetup(args, case[args.case])
-            CNN_mod.fit(Xtr, Ytr, validation_data=(Xts, Yts), epochs=15, batch_size=50, verbose=2)
-            scores = CNN_mod.evaluate(Xts, Yts, verbose=0)
+          CNN_mod = CNN_modelSetup(args, case[args.case])
+          CNN_mod.fit(Xtr, Ytr, validation_data=(Xts, Yts), epochs=15, batch_size=50, verbose=2)
+          scores = CNN_mod.evaluate(Xts, Yts, verbose=0)
 
-            CNN_mod.save('./models/LetterRecognition_case{}.h5'.format(args.case))
-     else:
-            numbyclass=[493, 496, 508, 461, 500, 482, 509, 509, 476, 458, 460, 523, 547, 521, 465, 526, 484, 470, 519, 477, 475, 480, 465, 490, 545, 483]
-            Trnumbyclass=[394, 397, 406, 369, 400, 386, 407, 407, 381, 366, 368, 418, 438, 417, 372, 421, 387, 376, 415, 382, 380, 384, 372, 392, 436, 386]
+          CNN_mod.save('./models/LetterRecognition_case{}.h5'.format(args.case))
+      else:
           # call gui function here
-            character_gui(args.case)
+          character_gui(args.case)
 
 if __name__ == '__main__':
   parser = argparse.ArgumentParser()
