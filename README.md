@@ -7,4 +7,7 @@ To run the code demo clone this repository and run the code with `python3 recogn
 ```
  --case=x: set the index of the network structure case by changing the value of x (index is case number - 1)
  --isDigit: change from character recognizer to the digit recognizer
+ --train: change from gui demo to training a model
 ```
+
+To run training demo for letters, install the CoMNIST latin_data.csv dataset in a './data/' directory.
